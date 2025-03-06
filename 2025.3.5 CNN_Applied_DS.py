@@ -22,7 +22,8 @@ tf.random.set_seed(42)
 
 # Data folder path (modify according to your setup)
 path_test = "uob_image_set"
-CATEGORIES = os.listdir(path_test)
+# Only consider directories as categories
+CATEGORIES = [d for d in os.listdir(path_test) if os.path.isdir(os.path.join(path_test, d))]
 img_size = 256
 
 # Define a function to remove the background of an image (assumes the target is the largest contour)
@@ -104,10 +105,10 @@ model.summary()
 
 # Set training parameters
 batch_size = 16
-epochs = 50
+epochs = 200
 
 # Define EarlyStopping and model checkpoint callbacks (saving format changed to .keras)
-early_stop = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 checkpoint = ModelCheckpoint("best_model.keras", monitor='val_loss', save_best_only=True)
 callbacks = [early_stop, checkpoint]
 
@@ -128,25 +129,6 @@ score = model.evaluate(X_test, y_test, verbose=0)
 print("Test Loss:", score[0])
 print("Test Accuracy:", score[1])
 
-# Plot accuracy and loss curves during training
-fig, ax = plt.subplots(1, 2, figsize=(12, 5))
-# Accuracy curve
-ax[0].plot(history.history['accuracy'], label='Train Accuracy')
-ax[0].plot(history.history['val_accuracy'], label='Validation Accuracy')
-ax[0].set_title('Model Accuracy')
-ax[0].set_xlabel('Epoch')
-ax[0].set_ylabel('Accuracy')
-ax[0].legend()
-# Loss curve
-ax[1].plot(history.history['loss'], label='Train Loss')
-ax[1].plot(history.history['val_loss'], label='Validation Loss')
-ax[1].set_title('Model Loss')
-ax[1].set_xlabel('Epoch')
-ax[1].set_ylabel('Loss')
-ax[1].legend()
-plt.tight_layout()
-plt.show()
-
 # Predict on the test set and compute confusion matrix and classification report
 y_pred = model.predict(X_test)
 y_pred_classes = np.argmax(y_pred, axis=1)
@@ -154,17 +136,21 @@ y_pred_classes = np.argmax(y_pred, axis=1)
 cm = confusion_matrix(y_test, y_pred_classes)
 print("Confusion Matrix:")
 print(cm)
+
+# Use only the unique labels that appear in the test set to generate the classification report
+unique_labels = np.unique(y_test)
+target_names = [CATEGORIES[i] for i in unique_labels]
 print("Classification Report:")
-print(classification_report(y_test, y_pred_classes, target_names=CATEGORIES))
+print(classification_report(y_test, y_pred_classes, labels=unique_labels, target_names=target_names))
 
 # Plot the confusion matrix
 plt.figure(figsize=(6, 6))
 plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
 plt.title('Confusion Matrix')
 plt.colorbar()
-tick_marks = np.arange(len(CATEGORIES))
-plt.xticks(tick_marks, CATEGORIES, rotation=45)
-plt.yticks(tick_marks, CATEGORIES)
+tick_marks = np.arange(len(unique_labels))
+plt.xticks(tick_marks, [CATEGORIES[i] for i in unique_labels], rotation=45)
+plt.yticks(tick_marks, [CATEGORIES[i] for i in unique_labels])
 thresh = cm.max() / 2.
 for i in range(cm.shape[0]):
     for j in range(cm.shape[1]):
