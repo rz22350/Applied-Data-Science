@@ -1,0 +1,67 @@
+import os
+from PIL import Image
+from tqdm import tqdm
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# 📂 设置数据路径
+DATASET_PATH = "/user/home/zt22740/ads/uob_image_set/uob_image_set/"
+EXPECTED_VIEWS = 5  # ✅ 设置你理想的完整视角数量（建议设为 4 或 5）
+
+# 📊 统计记录容器
+records = []
+
+# 🚀 遍历每个服装样本
+for item_id in tqdm(os.listdir(DATASET_PATH)):
+    item_path = os.path.join(DATASET_PATH, item_id)
+    if not os.path.isdir(item_path):
+        continue
+
+    # 获取所有 JPG 图片路径
+    image_paths = [os.path.join(item_path, f) for f in os.listdir(item_path) if f.lower().endswith(".jpg")]
+    num_views = len(image_paths)
+
+    # 提取第一张图片的尺寸（可选）
+    try:
+        img = Image.open(image_paths[0])
+        img_size = img.size
+    except Exception:
+        img_size = None
+
+    # ✅ 修正 missing_views 计算
+    record = {
+        "item_id": item_id,
+        "num_views": num_views,
+        "image_size": img_size,
+        "missing_views": max(0, EXPECTED_VIEWS - num_views),
+        "extra_views": max(0, num_views - EXPECTED_VIEWS)
+    }
+
+    records.append(record)
+
+# 📋 生成 DataFrame
+df = pd.DataFrame(records)
+
+# 💾 保存结果到 CSV
+df.to_csv("fashion_view_stats.csv", index=False)
+print("✅ 保存统计结果到 fashion_view_stats.csv")
+
+# 📈 打印统计摘要
+print("\n📊 统计摘要：")
+print(df[["num_views", "missing_views", "extra_views"]].describe())
+
+# 🔍 查看 missing_views 的分布情况
+print("\n📊 missing_views 分布（检查是否合理）：")
+print(df["missing_views"].value_counts().sort_index())
+
+# 📊 可视化图像数分布
+plt.figure(figsize=(8, 5))
+df["num_views"].hist(bins=range(df["num_views"].min(), df["num_views"].max() + 2), color="skyblue", edgecolor="black")
+plt.title("分视角图像数量分布")
+plt.xlabel("视角图像数量")
+plt.ylabel("样本数量")
+plt.grid(True)
+plt.tight_layout()
+plt.savefig("view_count_histogram.png")
+plt.show()
+print("✅ 已生成视角数量分布图 view_count_histogram.png")
